@@ -1,6 +1,6 @@
 
-dataname = 'F16traindata_CMabV_2022';
-valdataname = 'F16validationdata_CMab_2022';
+dataname = 'Datafile/F16traindata_CMabV_2022';
+valdataname = 'Datafile/F16validationdata_CMab_2022';
 % measurement dataset
 load(dataname, 'Cm', 'Z_k', 'U_k')
 % special validation dataset

@@ -4,6 +4,7 @@
 % 
 % Part 2 Code: State & Parameter Estimation
 % Date: 28 OCT 2022
+% Creator: J. Huang | 4159772
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 close all 
@@ -14,11 +15,10 @@ app_chart = 0;
 save_fig = 0;
 
 %% Load Data
+load_f16data2022
 
-data_f16 = 'Datafile/F16traindata_CMabV_2022';
-
-%%% Retrieve Variables Cm, Uk, Zk and split them up 
-[Cm, Zk, Uk] = load_data_f16(data_f16);
+% Tranposed data
+Cm = Cm'; Zk = Z_k'; Uk = U_k'; % measurement dataset
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -78,26 +78,38 @@ Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bi
 
 %%% 1. Measurement Data Formulation and Data Model Reconstruction 
 
-X = Z_k1k'; % mx1 state vector
+X = Z_k1k'; % mx1 state vector - reconstructed Z
 Y = Cm'; % Nx1 measurement vector
 polynomial_order = 3; % adjustable based on fitting
-
-save('Datafile/F16reconstructed', 'X', 'Y') 
 
 %%% 2. Identify Linear Regression Model Structure + Parameter Definitions
 %%%  Linear-in-the-parameter polynomial model y=Ax*theta
 
 % Regression Matrix Ax 
-Ax = reg_matrix(X, polynomial_order); % Nxn matrix 
+Ax = reg_matrix(X, polynomial_order); 
 
 %%% 3. Formulate the Least Square Estimator 
 theta_OLS = pinv(Ax)*Y; % OLS equation from slide
 
 Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
 
-chart_OLS(X, Y, Y_est, save_fig, 'OLS'); 
+% chart_OLS(X, Y, Y_est, save_fig, 'OLS'); 
 
-%%% 4. Evaluate / Validate Model
+%% Part 2.6 - 2.8: Model Validation 
+%%% 2.6 - Parameters
+order_fit = 25; % Model order influence on fit 
+X_val = [alpha_val beta_val]; % validation dataset
+Y_val = Cm_val;
+
+%%% Obtain optimal OLS and MSE for increasing order for each dataset
+MSE = MSE_model(X, Y, order_fit);
+
+chart_MSE
+
+%%% 2.7
+%%% Model-Error Based Validation
+
+% [eps, eps_ac, lags, conf_95] = model_err_val(X_test, Y_test, OLSE_opt);
 
 
 
@@ -106,7 +118,7 @@ chart_OLS(X, Y, Y_est, save_fig, 'OLS');
 %%% Get charts
 if (app_chart)
     chart_IEKF % Part 2.4
-    chart_OLS % Part 2.5 
+    chart_OLS(X, Y, Y_est, save_fig, 'OLS'); % Part 2.5 
 end
 
 
