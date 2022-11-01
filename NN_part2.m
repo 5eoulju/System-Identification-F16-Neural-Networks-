@@ -10,15 +10,15 @@ close all
 clear
 clc
 
-app_chart = 1;
-save_chart = 0;
+app_chart = 0;
+save_fig = 0;
 
 %% Load Data
 
 data_f16 = 'Datafile/F16traindata_CMabV_2022';
 
 %%% Retrieve Variables Cm, Uk, Zk and split them up 
-[Uk, Zk, Cm] = load_data_f16(data_f16);
+[Cm, Zk, Uk] = load_data_f16(data_f16);
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -46,7 +46,7 @@ input = 3; % udot, wdot, vdot
 N = size(Zk, 2)-1; % Number of sampling data
 tstart = 0;
 dt = 0.01; % sampling rate
-tend = dt*N; % usually equal to N, but takes longer to load
+tend = dt*(N); % usually equal to N, but takes longer to load
 tspan = tstart:dt:tend; % tspan needed for numerical integration later
 
 %%% Process(w) + Sensor(v) Noise Statistics 
@@ -66,5 +66,48 @@ observ_check
 [X_est_k1k1, Z_k1k_biased, IEKF_count] = func_IEKF(Uk, Zk, dt, sigma_w, sigma_v);
 
 %% Reconstruction of alpha_true using upwash bias (Part 2.4)
+
+%%% Apply correction to measured alpha with upwash bias to get true alpha
+Z_k1k = Z_k1k_biased;
+Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bias term
+
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Implementation OLS estimator for simple polynomial F16 model structure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% 1. Measurement Data Formulation and Data Model Reconstruction 
+
+X = Z_k1k'; % mx1 state vector
+Y = Cm'; % Nx1 measurement vector
+polynomial_order = 3; % adjustable based on fitting
+
+save('Datafile/F16reconstructed', 'X', 'Y') 
+
+%%% 2. Identify Linear Regression Model Structure + Parameter Definitions
+%%%  Linear-in-the-parameter polynomial model y=Ax*theta
+
+% Regression Matrix Ax 
+Ax = reg_matrix(X, polynomial_order); % Nxn matrix 
+
+%%% 3. Formulate the Least Square Estimator 
+theta_OLS = pinv(Ax)*Y; % OLS equation from slide
+
+Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
+
+chart_OLS(X, Y, Y_est, save_fig, 'OLS'); 
+
+%%% 4. Evaluate / Validate Model
+
+
+
+%% Plots
+
+%%% Get charts
+if (app_chart)
+    chart_IEKF % Part 2.4
+    chart_OLS % Part 2.5 
+end
+
 
 

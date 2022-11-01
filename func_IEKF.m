@@ -13,9 +13,10 @@ function [X_est_k1k1, Z_k1k_biased, IEKF_count] = func_IEKF(Uk, Zk, dt, sigma_w,
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % IEKF Integration and Simulation Parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-tstart = 0;
-tend = 150;
-tspan = tstart:dt:tend;
+% tstart = 0;
+% df = dt;
+% tend = 150;
+% tspan = tstart:df:tend;
 N = size(Uk, 2);
 epsilon = 1e-10; % error range for iterative part
 apply_iter = 1; % binary switch for iteration
@@ -39,34 +40,41 @@ G = eye(states); % System Noise
 % Define arrays and matrices to store results
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-X_est_k1k1 = zeros(states, N); 
+X_est_k1k1 = zeros(states, N);
 P_k1k1 = zeros(states, N); % Cov. Matrix State Pred. Error
+Z_k1k_biased = zeros(N_sensor, N);
 stdx_corr = zeros(states, N);  % Variable to check estimation error in the Iterative Part
-Z_k1k = zeros(outputs, N);
-IEKF_count = zeros(N, 1);  % Iteration count for each data point
 
+% Initial Conditions
 x_est_k1_k1 = Ex0; % x(0|0)=E{x_0}
 p_k1_k1 = P0;  % P(0|0)=P(0)
 
-%%% Run IEKF Process
+IEKF_count = zeros(N, 1);  % Iteration count for each data point
 
+%%% Run IEKF Process
 tic; % record current time
+
+ti = 0; 
+tf = dt;
 
 % Run the IEKF through all N Measurements
 for k = 1:N
     % One-Step Ahead Prediction of x_hat_kk1 
-    [t, xhat_k1k] = ode45(@(t, x) calc_F(t, x, Uk(:,k)), tspan, x_est_k1_k1); 
-    t = t(end); xhat_k1k = xhat_k1k(end,:)'; 
+    [t, x_est_k1k] = ode45(@(t, x) calc_F(t, x, Uk(:,k)), [ti tf], x_est_k1_k1); 
+    
+    % Obtain data from last row
+    t = t(end); 
+    x_est_k1k = x_est_k1k(end,:)'; 
     
     % One-Step Ahead Prediction Output (z_k1k)
-    z_kk1 = calc_h(0, xhat_k1k, Uk(:,k)); 
-    Z_k1k(:,k) = z_kk1;
+    z_kk1 = calc_h(0, x_est_k1_k1, Uk(:,k)); 
+    Z_k1k_biased(:,k) = z_kk1;
 
     % Step 3: Discretize state transition (Phi_k1k) & input matrix
     % (Gamma_k1k)
-    Fx = calc_Fx(0, xhat_k1k, Uk(:,k)); % perturbation of f(x,u,t)
+    Fx = calc_Fx(0, x_est_k1k, Uk(:,k)); % perturbation of f(x,u,t)
     
-    [Phi, Gamma] = c2d(Fx, G, dt);   
+    [Phi, Gamma] = c2d(Fx, G, dt); % from cont. to discrete
     
     % Cov. Matrix of State pred. error P_k1k
     P_k1k = Phi*p_k1_k1*Phi' + Gamma*Q*Gamma'; 
@@ -76,16 +84,18 @@ for k = 1:N
     
     % if apply_iter = 1: apply IEKF, else run standard EKF
     if (apply_iter)
-        eta2 = xhat_k1k; % init the iteration with state estimation calc before
+        eta2 = x_est_k1k; % init the iteration with state estimation calc before
         err_iter = 2*epsilon;
         N_iter = 0; 
         
         while (err_iter > epsilon)
+            
             if (N_iter >= max_iter)
-                fprintf('Terminating IEKF: exceeded max iterations (%d)\n', iter_max);
+                fprintf('Terminating IEKF: exceeded max iterations (%d)\n', max_iter);
                 break
             end
-            iter_N = iter_N + 1;
+            
+            N_iter = N_iter + 1;
             eta1 = eta2;
 
             % Construct the Jacobian H = d/dx(h(x))) with h(x) the observation model transition matrix 
@@ -102,13 +112,13 @@ for k = 1:N
             % The innovation matrix
             Ve = (Hx*P_k1k*Hx' + R);
 
-            % calculate the Kalman gain matrix
+            % The Kalman gain matrix 
             K = P_k1k * Hx' / Ve;
             
-            % new observation state
-            z_p = calc_h(0, eta1, Uk(:,k)) ;%fpr_calcYm(eta1, u);
+            % Observation State for current loop 
+            z_current = calc_h(0, eta1, Uk(:,k)) ; 
 
-            eta2 = xhat_k1k + K * (Zk(:,k) - z_p - Hx*(xhat_k1k - eta1));
+            eta2 = x_est_k1k + K * (Zk(:,k) - z_current - Hx*(x_est_k1k - eta1));
             err_iter = norm((eta2 - eta1), inf) / norm(eta1, inf);
         end
 
@@ -117,7 +127,7 @@ for k = 1:N
 
     else
 %         % Correction
-%         Hx = calc_Hx(0, xhat_k1k, Uk(:,k)); % perturbation of h(x,u,t)
+%         Hx = calc_Hx(0, x_est_k1k, Uk(:,k)); % perturbation of h(x,u,t)
 %         % Pz(k+1|k) (covariance matrix of innovation)
 %         Ve = (Hx*P_kk_1 * Hx' + R); 
 % 
@@ -128,19 +138,19 @@ for k = 1:N
 
     end    
     
-    p_k1_k1 = (eye(n) - K*Hx) * P_kk_1 * (eye(n) - K*Hx)' + K*R*K';  
-    P_cor = diag(p_k1_k1);
-    eta_error = sqrt(diag(p_k1_k1));
+    p_k1_k1 = (eye(states) - K*Hx) * P_k1k * (eye(states) - K*Hx)' + K*R*K';  
+    % P_cor = diag(p_k1_k1);
+    stdx_corr_x = sqrt(diag(p_k1_k1));
 
-    % Next step
-    ti = tf; 
+    % Update for next measurement
+    ti = tf;
     tf = tf + dt;
     
-    % store results
+    % Save data 
     X_est_k1k1(:,k) = x_est_k1_k1;
-%     P_k1k1(k,:) = p_k1_k1;
-    eta_error(:,k) = eta_error;
+    P_k1k1(:,k) = diag(p_k1_k1);
+    stdx_corr(:,k) = stdx_corr_x;
+    
 end
-
 
 end
