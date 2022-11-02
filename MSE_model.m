@@ -1,31 +1,22 @@
 function MSE = MSE_model(X, Y, order)
 
 %{
-    Function that get the optimal OLS output and MSE for given dataset and
-    maximum order. 
+    Function that get the MSE for given maximum order 
 %}
 
 %%% Define parameters
-N_states = size(Y, 2); % Number of measurement states
-N_meas = size(Y, 1);
+N_meas = size(Y, 1); % Measurement number
+MSE = zeros(order, 1); % Setup MSE matrix for X, Y dataset
 
-
-MSE = zeros(order, 1, N_states); % Setup MSE matrix for X, Y dataset
-
-%%% Loop through each order
+%%% Loop through the order and get and store MSE for each loop
 for i = 1:order
-    % Regression Matrix Ax 
+    % Use OLS estimator script to get Y_est
     Ax = reg_matrix(X, i); 
-    
-    % Formulate OLS
-    theta_OLS = pinv(Ax)*Y; % Measurement set
+    theta_OLS = pinv(Ax)*Y; 
     Y_est = Ax*theta_OLS;
     
-    % Obtain MSE 
+    % Obtain MSE using Y_est and measurement Y data
     eps = Y-Y_est; % epsilon residual
-    
-    MSE_input = 1/(N_meas)*(eps'*eps);
-    
-    MSE(i,1) = MSE_input;
-    
+    MSE_input = 1/N_meas*(eps'*eps); % MSE eq. in matrix notation
+    MSE(i,1) = MSE_input; % store data
 end

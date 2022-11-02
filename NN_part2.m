@@ -72,9 +72,9 @@ Z_k1k = Z_k1k_biased;
 Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bias term
 
 %%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Implementation OLS estimator for simple polynomial F16 model structure
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% 1. Measurement Data Formulation and Data Model Reconstruction 
 
@@ -95,21 +95,40 @@ Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
 
 % chart_OLS(X, Y, Y_est, save_fig, 'OLS'); 
 
-%% Part 2.6 - 2.8: Model Validation 
+%% Part 2.6-2.8: Model Validation 
 %%% 2.6 - Parameters
-order_fit = 25; % Model order influence on fit 
+order_iter = 10; % iterative order to check fit
 X_val = [alpha_val beta_val]; % validation dataset
 Y_val = Cm_val;
 
-%%% Obtain optimal OLS and MSE for increasing order for each dataset
-MSE = MSE_model(X, Y, order_fit);
+%%% Obtain MSE for increasing order 
+MSE_meas = MSE_model(X, Y, order_iter); % Applied on measurement dataset
+MSE_val = MSE_model(X_val, Y_val, order_iter);
 
-chart_MSE
+chart_MSE(MSE_meas, MSE_val, order_iter)
 
-%%% 2.7
-%%% Model-Error Based Validation
+%% 2.7 Model-Error Validation
+%%% Use the optimal model order to obtain Y_optimal
+[M, I] = min(MSE_meas); % M is the value, I is the optimal index/order
+optim_order = I; 
+Ax_optim = reg_matrix(X, optim_order); % redo OLS process
+theta_OLS_optim = pinv(Ax_optim)*Y;
+Y_est_optim = Ax_optim*theta_OLS_optim;
 
-% [eps, eps_ac, lags, conf_95] = model_err_val(X_test, Y_test, OLSE_opt);
+%%% Calculate residuals of using optimal model order
+eps_optim = Y_est_optim - Y;
+
+% Fig 1: histogram of residuals to check normal distribution with zero mean
+figure; hold on
+% subplot(3, 1, 1); hold on
+histogram(eps_optim(:, 1), bins(1), 'FaceColor', 'b')
+xlabel('Residual $C_m$ [-]', 'Interpreter', 'Latex')
+ylabel('\# Residuals [-]', 'Interpreter', 'Latex')
+title('Model Residual: $C_m$', 'Interpreter', 'Latex', 'FontSize', 12)
+axis([-0.02 0.02 0 500])
+grid on
+
+[eps_corr, conf_range] = model_err_val(X, Y_est_optim);
 
 
 

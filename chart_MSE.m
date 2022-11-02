@@ -1,18 +1,16 @@
-% Fig 1: MSE (train, val, test) as function of model order
-set(0, 'DefaultFigurePosition', [150 150 720 300])
-figure
+function chart_MSE(MSE_meas, MSE_val, order)
 
-order = 1:size(MSE, 1);
+x = 1:order; % x-axis range
 
-% subplot(3, 1, 1); hold on
+figure()
 hold on
-plot(order, MSE(:, 1, 1), 'b')
-% plot(order, MSE(:, 1, 2), 'r')
-% plot(order, MSE(:, 1, 3), 'g')
-% ylabel('MSE \big[rad$^2$\big]', 'Interpreter', 'Latex')
+plot(x, MSE_meas, 'b')
+plot(x, MSE_val, 'r')
 xlabel('Order [-]', 'Interpreter', 'Latex')
 ylabel('MSE [-]', 'Interpreter', 'Latex')
 title('MSE vs Model Order: $C_m$', 'Interpreter', 'Latex', 'FontSize', 12)
 legend({'Measurements', 'Validation'}, 'Location', 'northeast')
 legend('boxoff')
 grid on
+
+end
