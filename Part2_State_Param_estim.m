@@ -80,7 +80,7 @@ Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bi
 
 X = Z_k1k'; % mx1 state vector - reconstructed Z
 Y = Cm'; % Nx1 measurement vector
-polynomial_order = 3; % adjustable based on fitting
+polynomial_order = 5; % adjustable based on fitting
 
 %%% 2. Identify Linear Regression Model Structure + Parameter Definitions
 %%%  Linear-in-the-parameter polynomial model y=Ax*theta
@@ -105,35 +105,36 @@ Y_val = Cm_val;
 MSE_meas = MSE_model(X, Y, order_iter); % Applied on measurement dataset
 MSE_val = MSE_model(X_val, Y_val, order_iter);
 
-chart_MSE
+chart_MSE(MSE_meas, MSE_val, order_iter)
 
 %% 2.7 Model-Error Validation
+
+%{
+    Performs a model-error based validation to check whether 
+    the OLS estimator satifisfies the BLUE (Best Linear Unbiased Estimator) estimator requirements:
+    
+    Requirement 1: E{residual_err} = 0 (zero-mean white noise)
+    Requirement 2: Able to predict noise sensitivity or variability of OLS
+    estimator using a certain confidence interval where the noise takes
+    place most of the time. 
+%}
+
 %%% Use the optimal model order to obtain Y_optimal
 [M, I] = min(MSE_meas); % M is the value, I is the optimal index/order
 optim_order = I; 
 Ax_optim = reg_matrix(X, optim_order); % redo OLS process
 theta_OLS_optim = pinv(Ax_optim)*Y;
-Y_est_optim = Ax_optim*theta_OLS_iptim;
+Y_est_optim = Ax_optim*theta_OLS_optim;
 
 %%% Calculate residuals of using optimal model order
-eps = Y_est_optim - Y;
+eps_optim = Y_est_optim - Y;
 
-% Fig 1: histogram of residuals to check normal distribution with zero mean
-set(0, 'DefaultFigurePosition', [150 150 720 500])
+%%% calculate confidence range of 95% for this optimal residual
+[eps_corr, conf_range, lags] = model_err_val(eps_optim);
 
-bins = [101 101 301];
+chart_mod_err_val % Chart conclusion for requirements 1 & 2 
 
-figure; hold on
-% subplot(3, 1, 1); hold on
-histogram(eps(:, 1), bins(1), 'FaceColor', 'b')
-xlabel('Residual $C_m$ [-]', 'Interpreter', 'Latex')
-ylabel('\# Residuals [-]', 'Interpreter', 'Latex')
-title('Model Residual: $C_m$', 'Interpreter', 'Latex', 'FontSize', 12)
-axis([-0.02 0.02 0 200])
-grid on
-
-% [eps, eps_corr, conf_range] = model_err_val(X, Y_est_optim);
-
+%%% Statistical-Error Validation
 
 
 %% Plots

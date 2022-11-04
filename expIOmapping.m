@@ -21,8 +21,8 @@ clc
 
 %%    Loading networks
 %---------------------------------------------------------
-load NetExampleFF netFF
-load NetExampleRBF netRBF
+load Examples/NetExampleFF netFF
+load Examples/NetExampleRBF netRBF
 
 %%   Creating IO data points
 %---------------------------------------------------------
