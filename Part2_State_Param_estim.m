@@ -71,6 +71,9 @@ observ_check
 Z_k1k = Z_k1k_biased;
 Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bias term
 
+%%% Save Data for further use
+save('Datafile/F16reconstructed', 'Z_k1k', 'Cm')
+
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Implementation OLS estimator for simple polynomial F16 model structure

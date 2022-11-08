@@ -10,11 +10,16 @@ function output = simNet_RBF(struct, data)
 output = struct; % same structure but output updated in training simulation
 
 %%% Data basic preprocessing using normalization to scale X and Y. 
-[X_norm, output.preprocess] = mapminmax(data.X_train'); % scale within [-1, 1] which is the default mapping
+X_norm = mapminmax(data.X_train'); % scale within [-1, 1] which is the default mapping
 X_norm = X_norm'; % transpose back
 
-[Y_norm, output.postprocess] = mapminmax(data.Y_train');
-Y_norm = Y_norm';
+% Y_norm = mapminmax(data.Y_train');
+% Y_norm = Y_norm';
+
+if ~isempty(data.Y_train)
+    Y_norm = mapminmax(
+    
+end
 
 
 % %%% Choose and Start Training Algorithm
@@ -38,8 +43,9 @@ switch struct.trainAlg
         Y_est_val = output_sim(output, data.X_val);
         
         %%% Obtain the model error using MSE between measured Y set and
-        %%% Y_est 
-        output.results.MSE_train = MSE_output(data.Y_train, Y_est_train); 
-        output.results.MSE_test = MSE_output(data.Y_test, Y_est_test); 
-        output.results.MSE_val = MSE_output(data.Y_val, Y_est_val); 
+        %%% Y_est
+        order = 3;
+        output.results.MSE_train = MSE_model(Y_est_train, data.Y_train, order); 
+        output.results.MSE_test = MSE_model(Y_est_test, data.Y_test, order); 
+        output.results.MSE_val = MSE_model(Y_est_val, data.Y_val, order); 
 end
