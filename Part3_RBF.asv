@@ -47,7 +47,7 @@ Y = Y(data_ordering, :); % and to Y
 network_type = 'rbf';
 actFunc_hidden = {'radbas'}; % Radial Basis Func for part 3
 actFunc_output = {'purelin'}; % Linear Regression for output
-trainAlg = {'linregress'}; % training algorithm 
+trainAlg = {'levenmarq'}; % training algorithm 
 
 % Layer parameters 
 N_input = 3; % alpha, beta, V
@@ -61,13 +61,13 @@ Wjk = randn(N_hidden, N_output); % Weights jk from hidden to output
 input_range = [-ones(N_input, 1), ones(N_input, 1)]; % bound to input space
 
 % Other parameters under trainParam
-epochs = 0; 
-goal = 0;  % Desired performance reached > stops training
+epochs = 10; 
+goal = 100;  % Desired performance reached > stops training
 min_grad = 1e-10; % training stops when gradient below value
-mu = 0; % Learning rate parameters
-mu_dec = 0;
-mu_inc = 0;
-mu_max = 0;
+mu = 0.001; % Learning rate parameters
+mu_dec = 0.1;
+mu_inc = 0.1;
+mu_max = 1e10;
 
 % Network parameter struct
 networkParam = struct('network_type', network_type, 'actFunc_hidden', actFunc_hidden, ...
@@ -94,8 +94,8 @@ end
 %%% Adding empty fields into main struct
 trainParam.centers = []; % center weights
 trainParam.results = []; % results
-trainParam.preprocess = struct(); % preprocessing data
-trainParam.postprocess = struct(); % postprocessing data
+trainParam.predata = []; % prep data before putting into network
+trainParam.postdata = []; % prep output data to use for analytics
 
 %%% Full Structure
 RBF_struct = trainParam; % full neural network network structure 
@@ -107,4 +107,156 @@ Data_struct = struct('X', X, 'X_train', X_train, 'X_test', X_test, 'X_val', X_va
 yRBF_NN = simNet_RBF(RBF_struct, Data_struct);
 
 %%% 3. Results
-plo
+% plot_RBF_lingress
+
+
+
+
+
+%% Test environment
+
+%%% Data basic preprocessing using normalization to scale X and Y. 
+[output, Xtrain_norm, Ytrain_norm] = predata_norm(RBF_struct, Data_struct.X_train, Data_struct.Y_train); 
+
+switch RBF_struct.trainAlg
+    case 'levenmarq'
+
+        %%% Learning algorithm: adaptive learning rate: Levenberg-Marquardt
+        
+        %%% Initialization of parameters
+        Et = zeros(RBF_struct.epochs, 1); % Cost Function Et 
+        MSE = zeros(RBF_struct.epochs, size(Data_struct.X, 2)); % MSE for each dataset per epoch
+        
+        %%% Get centroids for RBF
+        [idx, centroid] = kmeans(Xtrain_norm, RBF_struct.N_hidden); % get clustered neuron centroid locations
+        output.centers = centroid;
+        
+        %%% stop loop conditions
+        early_stop = 0;
+        
+        %%% Looping through epochs 
+        
+        for epochs = 1:RBF_struct.epochs
+            %%% Feedforward to obtain MSE for backpropagation process
+            Y_est_train = output_sim(output, Xtrain_norm); 
+            
+            %%% Compute cost function value Et
+            Et = MSE_output(Ytrain_norm, Y_est_train);
+            
+            %%% Obtain weight update: w_t1 = wt-(J'*J+mu*I)^-1*J'*e
+            
+            % Compute the Jacobian Matrix J 
+            [J, err] = calc_J(output, Xtrain_norm, Ytrain_norm);
+            
+            % Compute Hessian matrix transposed(J)*J
+            H = J'*J; 
+            
+            % Reshape weights into an one-liner
+            wt = reshape([RBF_struct.Wij' RBF_struct.Wjk], 1, RBF_struct.N_weights);
+            
+            % From weight update w_t1 equation
+            w_t1 = wt - ((H + RBF_struct.mu * eye(size(H))) \ (J' * err))';
+            
+            % Updated Weights
+            w_t1_update = reshape(w_t1, RBF_struct.N_hidden, RBF_struct.N_input + RBF_struct.N_output);
+            output.Wij = w_t1_update(:, 1:RBF_struct.N_input)';
+            output.Wjk = w_t1_update(:, end);
+            
+            % Get the error output using the updated weights
+            Ytrain_update = output_sim(output, Xtrain_norm);
+            err_update = MSE_output(Ytrain_norm, Ytrain_update);
+            
+            %%% Apply adaptive learning rate algo based on updated error
+            while err_update > err
+                % if updated error is bigger than previous error - increase
+                % learning rate
+                RBF_struct.mu = RBF_struct.mu * RBF_struct.mu_inc;
+                
+                % Weight update given new learning rate
+                w_t1 = wt - ((H + RBF_struct.mu * eye(size(H))) \ (J' * err))';
+                w_t1_update = reshape(w_t1, RBF_struct.N_hidden, RBF_struct.N_input + RBF_struct.N_output);
+                output.Wij = w_t1_update(:, 1:RBF_struct.N_input)';
+                output.Wjk = w_t1_update(:, end);
+                
+                % Get new updated error for new weights
+                Ytrain_update = output_sim(output, Xtrain_norm);
+                err_update = MSE_output(Ytrain_norm, Ytrain_update);
+            end
+            
+            output.Wij = w_t1_update(:, 1:RBF_struct.N_input);
+            output.Wjk = w_t1_update(:, end);
+            
+            %%% Get results for each dataset
+            
+            %%% Normalization preprocessing
+[output, X_norm] = predata_norm(output, Data_struct.X_train);
+
+%%% Obtain vj - function from input to hidden
+% Squared Distance 
+R(:,:,1) = (X_norm(:,1) - output.centers(:,1)').^2;
+R(:,:,2) = (X_norm(:,2) - output.centers(:,2)').^2;
+R(:,:,3) = (X_norm(:,3) - output.centers(:,3)').^2;
+
+vj = output.Wij(1,:).* R(:,:,1) + output.Wij(2,:).* R(:,:,2) + ...
+    output.Wij(3,:).* R(:,:,3);
+
+%%% Use the RBF activation function to get output of the hidden layer
+phi_j = exp(-vj);
+
+%%% Use output of the hidden layer to get vk (function of Wjk and output of
+%%% hidden layer). In equation form: vk = sum_j(ajk * phi_j)
+vk = phi_j * output.Wjk;
+
+%%% Output layer neuron Y (purelin transfer function)
+Y_est_norm = vk;
+
+%%% Reverse normalization for Y_est_norm output
+Y_est = mapminmax('reverse', Y_est_norm', output.postdata);
+Y_est = Y_est'; 
+
+            [Y_est_train, phi_j_train, vj_train, R_train] = output_sim_linreg(output, Data_struct.X_train);
+            [Y_est_test, phi_j_test, vj_test, R_test] = output_sim_linreg(output, Data_struct.X_test);
+            [Y_est_val, phi_j_val, vj_val, R_val] = output_sim_linreg(output, Data_struct.X_val);
+            
+            %%% MSE
+            MSE(epochs, 1) = MSE_output(Data_struct.Y_train, Y_est_train); 
+            MSE(epochs, 2) = MSE_output(Data_struct.Y_test, Y_est_test); 
+            MSE(epochs, 3) = MSE_output(Data_struct.Y_val, Y_est_val); 
+            
+            %%% Determine requirements to stop the loop
+            [stop, early_stop, output] = stop_condition(RBF_struct, epochs, Et, MSE, early_stop);
+                
+            if stop
+                break
+            end  
+            
+        end
+end
+
+%% Test environment for linregress
+
+switch RBF_struct.trainAlg
+    
+    case 'linregress' 
+        
+        [idx, centroid] = kmeans(Xtrain_norm, RBF_struct.N_hidden); % get clustered neuron centroid locations
+        output.centers = centroid;
+       
+        %%% Input Layer - obtain Vj struct from input layer
+        vj = calc_vj(output, Xtrain_norm);
+        
+        %%% Activitation function given by phi_j(vj) = a*exp(-vj) 
+        phi_j = exp(-vj); 
+        output.Wjk = pinv(phi_j) * Ytrain_norm; % get the hidden-output layer weights
+        
+        %%% Get estimated struct for each dataset using obtained Wjk
+        [Y_est_train, phi_j_train, vj_train, R_train] = output_sim(output, input.X_train);
+        [Y_est_test, phi_j_test, vj_test, R_test] = output_sim(output, input.X_test);
+        [Y_est_val, phi_j_val, vj_val, R_val] = output_sim(output, input.X_val);
+        
+        %%% Obtain the model error using MSE between measured Y set and
+        %%% Y_est 
+        output.results.MSE_train = MSE_output(input.Y_train, Y_est_train); 
+        output.results.MSE_test = MSE_output(input.Y_test, Y_est_test); 
+        output.results.MSE_val = MSE_output(input.Y_val, Y_est_val); 
+end

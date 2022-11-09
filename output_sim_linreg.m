@@ -1,4 +1,4 @@
-function [Y_est, phi_j, vj, R] = output_sim(struct, X)
+function [Y_est, phi_j, vj, R] = output_sim_linreg(struct, X)
 
 %{ 
     Function that simulates the RBF neural network using the obtained Wjk weights
@@ -6,13 +6,7 @@ function [Y_est, phi_j, vj, R] = output_sim(struct, X)
 %} 
 
 %%% Normalization preprocessing
-
-if isequal(struct.trainAlg, 'linregress')
-    [struct, X_norm] = predata_norm(struct, X);
-elseif isequal(struct.trainAlg, 'levenmarq')
-    X_norm = X; 
-end
-
+[struct, X_norm] = predata_norm(struct, X);
 
 %%% Obtain vj - function from input to hidden
 [vj, R] = calc_vj(struct, X_norm);
@@ -27,12 +21,8 @@ vk = phi_j * struct.Wjk;
 %%% Output layer neuron Y (purelin transfer function)
 Y_est_norm = vk;
 
-if isequal(struct.trainAlg, 'linregress')
-    %%% Reverse normalization for Y_est_norm output
-    Y_est = mapminmax('reverse', Y_est_norm', struct.postdata);
-    Y_est = Y_est'; 
-elseif isequal(struct.trainAlg, 'levenmarq')
-    Y_est = Y_est_norm;
-end
+%%% Reverse normalization for Y_est_norm output
+Y_est = mapminmax('reverse', Y_est_norm', struct.postdata);
+Y_est = Y_est'; 
 
 end
