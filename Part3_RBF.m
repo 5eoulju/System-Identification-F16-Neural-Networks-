@@ -47,7 +47,7 @@ Y = Y(data_ordering, :); % and to Y
 network_type = 'rbf';
 actFunc_hidden = {'radbas'}; % Radial Basis Func for part 3
 actFunc_output = {'purelin'}; % Linear Regression for output
-trainAlg = {'levenmarq'}; % training algorithm 
+trainAlg = {'linregress'}; % training algorithm 
 
 % Layer parameters 
 N_input = 3; % alpha, beta, V
@@ -64,9 +64,9 @@ input_range = [-ones(N_input, 1), ones(N_input, 1)]; % bound to input space
 epochs = 10; 
 goal = 100;  % Desired performance reached > stops training
 min_grad = 1e-10; % training stops when gradient below value
-mu = 0.001; % Learning rate parameters
+mu = 1e22; % Learning rate parameters
 mu_dec = 0.1;
-mu_inc = 0.1;
+mu_inc = 1.1;
 mu_max = 1e10;
 
 % Network parameter struct
@@ -109,10 +109,6 @@ yRBF_NN = simNet_RBF(RBF_struct, Data_struct);
 %%% 3. Results
 % plot_RBF_lingress
 
-
-
-
-
 %% Test environment
 
 %%% Data basic preprocessing using normalization to scale X and Y. 
@@ -138,16 +134,63 @@ switch RBF_struct.trainAlg
         
         for epochs = 1:RBF_struct.epochs
             %%% Feedforward to obtain MSE for backpropagation process
+            
+            % Step 1. First a foward computation step to compute v and y
             Y_est_train = output_sim(output, Xtrain_norm);
+            
+            % Then the output errors are compute ek
             error = MSE_output(Ytrain_norm, Y_est_train);
             
-            %%% Compute cost function value Et
+            %%% Compute cost function value Et per epoch
             Et(epochs) = error;
             
+            % Finally the cost function dependencies on the weights are
+            % propogataed from right to left with starting point Et
+            
+           
             %%% Obtain weight update: w_t1 = wt-(J'*J+mu*I)^-1*J'*e
             
             % Compute the Jacobian Matrix J 
-            [J, err] = calc_J(output, Xtrain_norm, Ytrain_norm);
+            % [J, err] = calc_J(output, Xtrain_norm, Ytrain_norm);
+            %%% Parameter setups
+N_meas = size(Xtrain_norm, 1); % number of measurement points
+N_input = size(Xtrain_norm, 2); % number of input vars
+
+%%% FeedForward process 
+[Y_est, phi_j, vj, R] = output_sim(output, Xtrain_norm);
+
+%%% Start backpropagation process 
+% 1. Compute dependencies wrt network outputs yk
+err_k = Ytrain_norm-Y_est;
+dE_dy_k = err_k*-1; 
+
+% 2. Compute dependencies wrt output layer input vk
+dy_dvk = 1; % linear activation function
+
+% 3. Compute dependencies wrt hidden layer weights
+dvk_dWjk = phi_j; % output of the hidden layer yj
+dE_dWjk = dE_dy_k .* dy_dvk .* dvk_dWjk;
+
+% 4. Compute dependencies wrt hidden layer activation function output yj
+dvk_dyj = output.Wjk;
+% dE_dyj = dE_dy_k .* dy_dvk .* dvk_dyj;
+
+% 5. Compute dependencies wrt hidden layer activation function output yj
+% wrt hidden layer inputs vj
+
+dphi_j_dvj = -phi_j; 
+
+% 6. Compute dependencies wrt input weights
+dvj_dWij = R.^2; % equal to yi - output of the input layer 
+
+% Complete Partial Derivatives
+for i = 1:N_input
+    dE_dWij(:,:,i) = dE_dy_k .* dy_dvk .* dvk_dyj' .* dphi_j_dvj .* dvj_dWij(:,:,i);
+end
+
+%%% Compute full Jacobian matrix
+J = [reshape(dE_dWij, [N_meas, output.N_input*output.N_hidden]) dE_dWjk];
+err = 0.5 * (Ytrain_norm-Y_est).^2; 
             
             % Compute Hessian matrix transposed(J)*J
             H = J'*J; 
@@ -156,7 +199,7 @@ switch RBF_struct.trainAlg
             wt = reshape([RBF_struct.Wij' RBF_struct.Wjk], 1, RBF_struct.N_weights);
             
             % From weight update w_t1 equation
-            w_t1 = wt - ((H + RBF_struct.mu * eye(size(H))) \ (J' * err))';
+            w_t1 = wt - ((H + RBF_struct.mu * eye(size(H))) \ (J' * err))'; % check if ' is needed
             
             % Updated Weights
             w_t1_update = reshape(w_t1, RBF_struct.N_hidden, RBF_struct.N_input + RBF_struct.N_output);

@@ -5,7 +5,7 @@
 % Fig 1: output hypothesis by RBF neural network
 
 % Get hypothesis
-Y_est = output_sim(yRBF_NN, Data_struct.X);
+Y_est = output_sim_linreg(yRBF_NN, Data_net.X);
 
 % And plot
-plot_hypothesis(Data_struct.X, Data_struct.Y, Y_est, save_fig, 'RBF Network - Linear Regression');
+plot_hypothesis(Data_net.X, Data_net.Y, Y_est, save_fig, 'RBF Network - Linear Regression');

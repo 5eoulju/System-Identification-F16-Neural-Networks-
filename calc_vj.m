@@ -1,4 +1,4 @@
-function [vj, R] = calc_vj(struct, X)
+function [vj, R] = calc_vj(net, X)
 
 %{
     Function that calculates vj using equation form: vj = sum_i(wij * (xi - cij)^2) 
@@ -7,12 +7,16 @@ function [vj, R] = calc_vj(struct, X)
     > vj output vector of the input layer
 %}
 
-% Squared Distance 
-R(:,:,1) = (X(:,1) - struct.centers(:,1)').^2;
-R(:,:,2) = (X(:,2) - struct.centers(:,2)').^2;
-R(:,:,3) = (X(:,3) - struct.centers(:,3)').^2;
+N = size(X, 1); % number of measurements
+N_states = size(X, 2);
+N_neurons = net.N_hidden;
+R = zeros(N, N_neurons, N_states); % empty squared distance R 
 
-vj = struct.Wij(1,:).*R(:,:,1) + struct.Wij(2,:).*R(:,:,2) + ...
-    struct.Wij(3,:).*R(:,:,3);
+for i = 1:N_states
+    R(:,:,i) = (X(:,i) - net.centers(:,i)').^2;
+end
+
+vj = net.Wij(1,:).*R(:,:,1) + net.Wij(2,:).*R(:,:,2) + ...
+    net.Wij(3,:).*R(:,:,3);
 
 end
