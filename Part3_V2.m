@@ -47,7 +47,7 @@ RBF_net.N_input = 3; % alpha, beta, V
 RBF_net.N_hidden = 50; % number of neurons
 RBF_net.N_output = 1; % Cm
 
-% Initialization of Weights 
+% Initialization of weights parameters
 RBF_net.N_Wij = RBF_net.N_input * RBF_net.N_hidden;
 RBF_net.N_Wjk = RBF_net.N_hidden;
 RBF_net.N_weights = RBF_net.N_hidden * (RBF_net.N_input + RBF_net.N_output); % total weights
@@ -55,21 +55,22 @@ RBF_net.Wij = randn(RBF_net.N_input, RBF_net.N_hidden); % Weights ij from input 
 RBF_net.Wjk = randn(RBF_net.N_hidden, RBF_net.N_output); % Weights jk from hidden to output 
 input_range = [-ones(RBF_net.N_input, 1), ones(RBF_net.N_input, 1)]; % bound to input space
 
-% Other parameters under trainParam
-RBF_net.epochs = 100; 
-RBF_net.goal = 10;  % Desired performance reached > stops training
+% Other parameters 
+RBF_net.epochs = 500; 
+RBF_net.goal = 1e-5;  % Desired performance reached 
 RBF_net.min_grad = 1e-10; % training stops when gradient below value
 RBF_net.mu = 0.001; % Learning rate parameters
 RBF_net.mu_dec = 0.1;
 RBF_net.mu_inc = 10;
 RBF_net.mu_max = 1e10;
 
-%%% Adding empty fields into main struct
+%%% Adding empty fields into main struct for results
 RBF_net.centers = []; % center weights
 RBF_net.results = []; % results
 RBF_net.predata = []; % prep data before putting into network
 RBF_net.postdata = []; % prep output data to use for analytics
 
+%%% Put data into struct type
 Data_net = struct('X', X, 'X_train', X_train, 'X_test', X_test, 'X_val', X_val, ...
     'Y', Y, 'Y_train', Y_train, 'Y_test', Y_test, 'Y_val', Y_val); % IO data points in struct type
 %%
