@@ -40,7 +40,7 @@ Y = Y(data_ordering, :); % and to Y
 % Fixed fields
 FF_net.name = 'feedforward';
 FF_net.trainFunc = {'tansig', 'purelin'}; % Activation function per layer
-FF_net.trainAlg = {'lg'}; % training algorithm 
+FF_net.trainAlg = {'linregress'}; % training algorithm 
 
 % Layer parameters 
 FF_net.N_input = 3; % alpha, beta, V
@@ -48,8 +48,8 @@ FF_net.N_hidden = 50; % number of neurons
 FF_net.N_output = 1; % Cm
 
 % Initialization of weights parameters
-FF_net.b_ij = ones(FF_net.N_hidden, FF_net.N_input); % input bias weights
-FF_net.b_jk = ones(FF_net.N_output, 1); % output bias weights
+FF_net.bias_ij = ones(FF_net.N_hidden, 1); % input bias weights
+FF_net
 FF_net.N_Wij = FF_net.N_input * FF_net.N_hidden;
 FF_net.N_Wjk = FF_net.N_hidden;
 FF_net.N_weights = FF_net.N_hidden * (FF_net.N_input + FF_net.N_output); % total weights

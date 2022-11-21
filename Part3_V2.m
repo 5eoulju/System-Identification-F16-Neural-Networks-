@@ -2,7 +2,7 @@
 % AE4320 System Identification of Aerospace Vehicles 21/22
 % Assignment: Neural Networks
 % 
-% Part 3 Code: Radial Basis Funcion Neural Network
+% Part 3 Code: Radial Basis Function Neural Network
 % Date: 28 OCT 2022
 % Creator: J. Huang | 4159772
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -56,17 +56,15 @@ RBF_net.Wjk = randn(RBF_net.N_hidden, RBF_net.N_output); % Weights jk from hidde
 input_range = [-ones(RBF_net.N_input, 1), ones(RBF_net.N_input, 1)]; % bound to input space
 
 % Other parameters 
-RBF_net.epochs = 500; 
-RBF_net.goal = 1e-5;  % Desired performance reached 
+RBF_net.epochs = 100; 
+RBF_net.goal = 1e-6;  % Desired performance reached 
 RBF_net.min_grad = 1e-10; % training stops when gradient below value
 RBF_net.mu = 0.001; % Learning rate parameters
 RBF_net.mu_dec = 0.1;
 RBF_net.mu_inc = 10;
 RBF_net.mu_max = 1e10;
 
-%%% Adding empty fields into main struct for results
-RBF_net.centers = []; % center weights
-RBF_net.results = []; % results
+%%% Adding empty fields for data processing
 RBF_net.predata = []; % prep data before putting into network
 RBF_net.postdata = []; % prep output data to use for analytics
 
