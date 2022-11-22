@@ -56,7 +56,7 @@ RBF_net.Wjk = randn(RBF_net.N_hidden, RBF_net.N_output); % Weights jk from hidde
 input_range = [-ones(RBF_net.N_input, 1), ones(RBF_net.N_input, 1)]; % bound to input space
 
 % Other parameters 
-RBF_net.epochs = 100; 
+RBF_net.epochs = 1000; 
 RBF_net.goal = 1e-6;  % Desired performance reached 
 RBF_net.min_grad = 1e-10; % training stops when gradient below value
 RBF_net.mu = 0.001; % Learning rate parameters

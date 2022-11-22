@@ -4,51 +4,78 @@ function net = simNet_FF(net, input)
     Function that simulates the FeedForward Neural Network based on the given network
     parameters to approximate any given function. 
     Moreover, it trains the neural network based on two algorithms:
-        1. Linear Regression Gradient Descent (lg)
+        1. Backpropagation algorithm from Neural Network slides (bp)
         2. Levenberg-Marquardt (lm)
 %}
 
 %%% Data Preprocessing
 [net, X_train_norm, Y_train_norm] = predata_norm(net, input.X_train, input.Y_train);
 
-%%% Feedforward process
-[Y_est, phi_j, vj] = FF_sim(net, input.X_train);
-
-
-
-
-
-
-
-%%% Backprop training algorithm process
+%%% Forward prop integration + Backprop training algorithm process
 switch net.trainAlg{1,1}
     
-    case 'lg' 
+    case 'bp' 
         
+        %%% Initialization of parameters
+        eta = 1; % learning rate 
+        Et = zeros(net.epochs, 1); % Cost Function Et 
+        MSE = zeros(net.epochs, size(input.X, 2)); % MSE for each input per epoch
         
-        
-        %%% K-means for initial neuron placement
-        [~, centroid] = kmeans(X_train_norm, net.N_hidden); 
-        net.centers = centroid; 
-       
-        %%% Input Layer - obtain Vj from input layer
-        vj = calc_vj(net, X_train_norm);
-        
-        %%% Activation function given by phi_j(vj) = a*exp(-vj)
-        a = 1;
-        phi_j = a*exp(-vj); 
-        net.Wjk = pinv(phi_j) * Y_train_norm; % get the hidden-output layer weights
-        
-        %%% Forward Prop to get estimated for each dataset using obtained Wjk
-        [Y_est_train, ~] = output_sim(net, input.X_train);
-        [Y_est_test, ~] = output_sim(net, input.X_test);
-        [Y_est_val, ~] = output_sim(net, input.X_val);
-        
-        %%% Obtain the model error using MSE between measured Y set and
-        %%% Y_est 
-        net.results.MSE_train = MSE_output(input.Y_train, Y_est_train); 
-        net.results.MSE_test = MSE_output(input.Y_test, Y_est_test); 
-        net.results.MSE_val = MSE_output(input.Y_val, Y_est_val); 
+        %%% Looping through epochs
+        for epochs = 1:net.epochs
+            % Get estimated Yk with feedforward process + retrieve error
+            % term
+            [Yk, phi_j, vj, vi] = FF_sim(net, X_train_norm);
+            err = MSE_output(Y_train_norm, Yk);
+            Et(epochs) = err; % store error term for each epoch
+            
+            % Apply error backprop training algo using gradient descent 
+            grad = backprop(net, X_train_norm, Y_train_norm, Yk, phi_j, vi);
+            grad_sum = sum(grad); % sum over all 'q' datapoints
+
+            % Reshape weights into a single row
+            wt = reshape([net.Wij' net.Wjk], 1, net.N_weights);
+            dw = -eta * grad_sum; 
+            w_t1 = wt + dw;
+            
+            % Updated Weights reshaped to fit into network type
+            w_t1_update = reshape(w_t1, net.N_hidden, net.N_input + net.N_output);
+            
+            net.Wij = w_t1_update(:, 1:net.N_input)';
+            net.Wjk = w_t1_update(:, end);
+            
+            % Get the error output using the updated weights
+            Y_train_update = FF_sim(net, X_train_norm);
+            err_update = MSE_output(Y_train_norm, Y_train_update);
+            
+            % condition for the loop to stop
+            if err_update < err
+                net.Wij = net.Wij;
+                net.Wjk = net.Wjk;
+                Et(epochs) = err_update;
+            else
+                %%% Get results for each dataset
+                [Y_est_train, ~] = FF_sim_norm(net, input.X_train);
+                [Y_est_test, ~] = FF_sim_norm(net, input.X_test);
+                [Y_est_val, ~] = FF_sim_norm(net, input.X_val);
+                
+                %%% MSE
+                net.results.MSE(epochs, 1) = MSE_output(input.Y_train, Y_est_train);
+                net.results.MSE(epochs, 2) = MSE_output(input.Y_test, Y_est_test);
+                net.results.MSE(epochs, 3) = MSE_output(input.Y_val, Y_est_val);
+                break;
+            end
+            
+            %%% Get results for each dataset
+            [Y_est_train, ~] = FF_sim_norm(net, input.X_train);
+            [Y_est_test, ~] = FF_sim_norm(net, input.X_test);
+            [Y_est_val, ~] = FF_sim_norm(net, input.X_val);
+            
+            %%% MSE
+            net.results.MSE(epochs, 1) = MSE_output(input.Y_train, Y_est_train);
+            net.results.MSE(epochs, 2) = MSE_output(input.Y_test, Y_est_test);
+            net.results.MSE(epochs, 3) = MSE_output(input.Y_val, Y_est_val);            
+        end 
         
     case 'lm'
 
