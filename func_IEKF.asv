@@ -80,11 +80,11 @@ for k = 1:N
     % One-Step Ahead Prediction Output (z_k1k)
     z_k1k = calc_h(X_k1k, vk(:,k)); 
 
-    % Step 3: Discretize the continuous time system 
+    % Step 3: Discretize 
     Fx = zeros(states, states);
     
-    [~, Psi] = c2d(Fx, B, dt); % data is in the input matrix
-    [Phi, Gamma] = c2d(Fx, G, dt); 
+    [~, Psi] = c2d(Fx, B, dt); 
+    [Phi, Gamma] = c2d(Fx, G, dt); % from cont. to discrete
     
     % Cov. Matrix of State pred. error P_k1k
     P_k1k = Phi*P_k1k1*Phi' + Gamma*Q*Gamma'; 

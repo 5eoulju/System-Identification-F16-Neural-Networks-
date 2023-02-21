@@ -21,26 +21,12 @@ syms('u', 'v', 'w','C_alpha_up', 'udot', 'vdot', 'wdot')
 
 
 %%% Parameters & Initial Conditions
-states = 4; 
-% inputs = 3; 
-% u0 = [5; 5; 5];
 x0 = [100; 10; 10; 1];
-
-%%% Define System State and Output Equations as described as above
 x = [u; v; w; C_alpha_up]; % state vector
-f_state = [udot; vdot; wdot; 0]; % state transition matrix f 
+f_state = [udot; vdot; wdot; 0]; % state transition matrix f
+sens_noise = [u; v; w];
+h_output = calc_h(x, sens_noise);
 
-h_output = [atan(w/u) * (1 + C_alpha_up); % Measurement matrix h
-    atan(v/sqrt(u^2 + w^2));
-    sqrt(u^2 + v^2 + w^2)];
-
-rank = rank_calc(x, f_state, h_output, x0); % check rank using rank_calc func
-
-if rank >= states
-    fprintf('\nSystem is observable (Observability Matrix = Full Rank)\n');
-else
-    fprintf('\nSystem is not observable (Observability Matrix = Not Full Rank)\n');
-end
-
+rank_calc(x, f_state, h_output, x0); % check rank using rank_calc func
 
 end

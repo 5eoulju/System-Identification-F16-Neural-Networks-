@@ -14,7 +14,7 @@ clc
 show_fig_kalman = 1;
 save_fig_kalman = 0;
 
-show_fig_param = 0;
+show_fig_param = 1;
 save_fig_param = 0;
 
 %% 
@@ -41,28 +41,54 @@ Zk = Z_k'; Uk = U_k'; % measurement dataset
         > Additional [v_alpha v_beta v_V] as white noise 
 %}
 
-% System Params
-N = size(Uk, 2); % Number of sampling data
+%%% Parameters
+
+%%% states + input
 states = 4; % u, w, v, C_alpha_up
 input = 3; % udot, wdot, vdot
-Sx = Uk; % system definition - trivial solution
-Sx = [Sx; zeros(1, size(Sx, 2))]; % adding C_alpha_up row
+Sys_x = Uk; % system definition - trivial solution
+Sys_x = [Sys_x; zeros(1, size(Sys_x, 2))]; 
+
+%%% Time and sampling data
+N = size(Zk, 2); % Number of sampling data
+tstart = 0;
+dt = 0.01; % sampling rate
+tend = dt*(N-1); % usually equal to N, but takes longer to load
+tspan = tstart:dt:tend; % tspan needed for numerical integration later
+
+%%% Process(w) + Sensor(v) Noise Statistics 
+Ew = zeros(states, 1); % Expectation Process Noise
+sigma_w = [1e-3 1e-3 1e-3 0]; % std. dev. 
+Q = diag(sigma_w.^2); % E(w*wT)
+wk = Q*randn(states, N) + Ew.*ones(states, N); % wu, wv, ww, wc
+
+Ev = zeros(input, 1);  % Expectation White Noise
+sigma_v = [0.035 0.013 0.110]; 
+R = diag(sigma_v.^2); % E(v*vT)
+vk = R*randn(input, N) + Ev.*ones(input, N); % va, vb, vv
+
+%%% Process Noise in system 
+Sys_x = Sys_x + wk;
 
 %% Nonlinear System Analysis + IEKF (Part 2.3)
 %%% Check if observability matrix is full ranked in order to apply KF
 observ_check
 
 %% Apply IEKF
-[X_k1k1, Z_k1k1, IEKF_count, est_err] = func_IEKF(Sx, Zk, Uk);
+[X_est_k1k1, Z_k1k_biased, IEKF_count] = func_IEKF(Sys_x, Zk, dt, sigma_w, sigma_v);
 
-%% Results and Plots
+%% Reconstruction of alpha_true using upwash bias (Part 2.4)
+
+%%% Apply correction to measured alpha with upwash bias to get true alpha
+Z_k1k = Z_k1k_biased;
+Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bias term
+
+%%% Save Data for further use
+save('Datafile/F16reconstructed', 'Z_k1k', 'Cm')
 
 if (show_fig_kalman)
     chart_IEKF_2
 end
-
-% Save Data for further use
-% save('Datafile/F16reconstructed', 'Z_k1k1', 'Cm')
 
 
 %%

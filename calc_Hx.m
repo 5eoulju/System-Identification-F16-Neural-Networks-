@@ -1,4 +1,4 @@
-function Hx = calc_Hx(t, x, u)
+function Hx = calc_Hx(x)
 
 %{ 
     Function that calculates the Jabocian of the measurement matrix h

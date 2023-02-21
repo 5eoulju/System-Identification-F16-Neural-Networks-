@@ -38,7 +38,7 @@ legend({'Raw measurement', 'Kalman-filtered'}, 'Location', 'northwest')
 legend('boxoff')
 grid on
 
-if save_fig
+if save_fig_kalman
     figure_name = 'figures/measurements_separate';
     set(gcf, 'Renderer', 'Painters')
     savefig([figure_name '.fig'])
@@ -55,7 +55,7 @@ ylabel('N [-]', 'Interpreter', 'Latex')
 title('IEKF Iterations', 'Interpreter', 'Latex', 'FontSize', 12)
 grid on
 
-if save_fig
+if save_fig_kalman
     figure_name = 'figures/IEKF_count';
     set(gcf, 'Renderer', 'Painters')
     savefig([figure_name '.fig'])
@@ -70,7 +70,7 @@ ylabel('$C_{\alpha_{up}}$', 'Interpreter', 'Latex')
 title('States: $C_{\alpha_{up}}$', 'Interpreter', 'Latex', 'FontSize', 12)
 grid on
 
-if save_fig
+if save_fig_kalman
     figure_name = 'figures/upwash';
     set(gcf, 'Renderer', 'Painters')
     savefig([figure_name '.fig'])
@@ -91,7 +91,7 @@ legend({'Raw measurement', 'Kalman-filtered', 'Bias-corrected'}, 'Location', 'no
 legend('boxoff')
 grid on
 
-if save_fig
+if save_fig_kalman
     figure_name = 'figures/a_vs_b';
     set(gcf, 'Renderer', 'Painters')
     savefig([figure_name '.fig'])
