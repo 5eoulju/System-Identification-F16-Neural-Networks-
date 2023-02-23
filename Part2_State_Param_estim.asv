@@ -14,7 +14,7 @@ clc
 show_fig_kalman = 1;
 save_fig_kalman = 0;
 
-show_fig_param = 1;
+show_fig_param = 0;
 save_fig_param = 0;
 
 %% 
@@ -41,54 +41,33 @@ Zk = Z_k'; Uk = U_k'; % measurement dataset
         > Additional [v_alpha v_beta v_V] as white noise 
 %}
 
-%%% Parameters
-
-%%% states + input
+% System Params
+N = size(Uk, 2); % Number of sampling data
 states = 4; % u, w, v, C_alpha_up
 input = 3; % udot, wdot, vdot
-Sys_x = Uk; % system definition - trivial solution
-Sys_x = [Sys_x; zeros(1, size(Sys_x, 2))]; 
-
-%%% Time and sampling data
-N = size(Zk, 2); % Number of sampling data
-tstart = 0;
-dt = 0.01; % sampling rate
-tend = dt*(N-1); % usually equal to N, but takes longer to load
-tspan = tstart:dt:tend; % tspan needed for numerical integration later
-
-%%% Process(w) + Sensor(v) Noise Statistics 
-Ew = zeros(states, 1); % Expectation Process Noise
-sigma_w = [1e-3 1e-3 1e-3 0]; % std. dev. 
-Q = diag(sigma_w.^2); % E(w*wT)
-wk = Q*randn(states, N) + Ew.*ones(states, N); % wu, wv, ww, wc
-
-Ev = zeros(input, 1);  % Expectation White Noise
-sigma_v = [0.035 0.013 0.110]; 
-R = diag(sigma_v.^2); % E(v*vT)
-vk = R*randn(input, N) + Ev.*ones(input, N); % va, vb, vv
-
-%%% Process Noise in system 
-Sys_x = Sys_x + wk;
+Sx = Uk;
+Sx = [Sx; zeros(1, size(Sx, 2))]; % adding C_alpha_up row
 
 %% Nonlinear System Analysis + IEKF (Part 2.3)
 %%% Check if observability matrix is full ranked in order to apply KF
 observ_check
 
 %% Apply IEKF
-[X_est_k1k1, Z_k1k_biased, IEKF_count] = func_IEKF(Sys_x, Zk, dt, sigma_w, sigma_v);
+[X_k1k1, Z_k1k1, IEKF_count, est_err] = func_IEKF(Sx, Zk, Uk);
 
-%% Reconstruction of alpha_true using upwash bias (Part 2.4)
+%% Results and Plots
 
-%%% Apply correction to measured alpha with upwash bias to get true alpha
-Z_k1k = Z_k1k_biased;
-Z_k1k(1,:) = Z_k1k(1,:) ./ (1 + X_est_k1k1(4,:)); % adjust alpha outcome with bias term
+% if (show_fig_kalman)
+%     chart_IEKF_2
+% end
 
-%%% Save Data for further use
-save('Datafile/F16reconstructed', 'Z_k1k', 'Cm')
+% Save Data for further use
+% save('Datafile/F16reconstructed', 'Z_k1k1', 'Cm')
 
-if (show_fig_kalman)
-    chart_IEKF_2
-end
+% Output measurements reconstructed transposed for OLS
+a_true_2 = Z_k1k1(1,:)';
+b_true_2 = Z_k1k1(2,:)';
+V_true_2 = Z_k1k1(3,:)';
 
 
 %%
@@ -98,22 +77,43 @@ end
 
 %%% 1. Measurement Data Formulation and Data Model Reconstruction 
 
-X = Z_k1k'; % mx1 state vector - reconstructed Z
-Y = Cm; % Nx1 measurement vector
-polynomial_order = 5; % adjustable based on fitting
+% Data splitting into model and validation datasets
+X = [a_true_2 b_true_2]; % reconstructed Z (alpha and beta)
+Y = Cm; % Z-axis  Cm 
+train_r = 0.7; % model ratio
+val_r = 1-train_r;
+N_meas = size(X, 1); 
 
-%%% 2. Identify Linear Regression Model Structure + Parameter Definitions
-%%%  Linear-in-the-parameter polynomial model y=Ax*theta
+s = RandStream('mt19937ar','Seed',1); % fixed seed for same results
+data_ordering = randperm(s, N_meas);
+X = X(data_ordering,:);
+Y = Y(data_ordering,:); 
 
-% Regression Matrix Ax 
-Ax = reg_matrix(X, polynomial_order); 
+[X_train, X_val, Y_train, Y_val] = data_split(X, Y, train_r, val_r, N_meas);
 
-%%% 3. Formulate the Least Square Estimator 
-theta_OLS = pinv(Ax)*Y; % OLS equation from slide
+%%% 2. Identify Linear Regression Model Structure, optimized order and parameters 
 
-Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
+% Optimal order
+[order, err] = optimal_order(X_train, Y_train, X_val, Y_val, 'simple');
+[A, theta, exp_order] = reg_matrix(order, X_train(:,1:2, Y_train, 'simple');
+A_complete = x2fx(X, exp_order); % use all datapoints with the optimal order
 
-chart_OLS(X, Y, Y_est, save_fig_param, 'OLS'); 
+% Output
+y_output = A * theta;
+residual = Y_train - y_output;
+MSE_output = sum(residual.^2)/size(residual,1)
+
+
+
+% % Regression Matrix Ax 
+% Ax = reg_matrix(X, polynomial_order); 
+% 
+% %%% 3. Formulate the Least Square Estimator 
+% theta_OLS = pinv(Ax)*Y; % OLS equation from slide
+% 
+% Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
+% 
+% chart_OLS(X, Y, Y_est, save_fig_param, 'OLS'); 
 
 %% Part 2.6-2.8: Model Validation 
 %%% 2.6 - Parameters

@@ -2,7 +2,7 @@ function h = calc_h(x, V)
 
 %{
     Function that gets the transformation (observation) matrix H
-    for measured data. 
+    for measured data including sensor noise
 %}
 
 % Setup states

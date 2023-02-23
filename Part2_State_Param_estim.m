@@ -8,7 +8,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 close all 
-clear
+clear 
 clc
 
 show_fig_kalman = 1;
@@ -45,7 +45,7 @@ Zk = Z_k'; Uk = U_k'; % measurement dataset
 N = size(Uk, 2); % Number of sampling data
 states = 4; % u, w, v, C_alpha_up
 input = 3; % udot, wdot, vdot
-Sx = Uk; % system definition - trivial solution
+Sx = Uk;
 Sx = [Sx; zeros(1, size(Sx, 2))]; % adding C_alpha_up row
 
 %% Nonlinear System Analysis + IEKF (Part 2.3)
@@ -57,13 +57,21 @@ observ_check
 
 %% Results and Plots
 
-if (show_fig_kalman)
-    chart_IEKF_2
-end
+% if (show_fig_kalman)
+%     chart_IEKF_2
+% end
 
 % Save Data for further use
 % save('Datafile/F16reconstructed', 'Z_k1k1', 'Cm')
 
+% Output measurements reconstructed transposed for OLS
+a_true_2 = Z_k1k1(1,:)';
+b_true_2 = Z_k1k1(2,:)';
+V_true_2 = Z_k1k1(3,:)';
+
+% Test case - none reconstructed data
+% a_true_2 = Z_k(:,1);
+% b_true_2 = Z_k(:,2);
 
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -72,22 +80,59 @@ end
 
 %%% 1. Measurement Data Formulation and Data Model Reconstruction 
 
-X = Z_k1k'; % mx1 state vector - reconstructed Z
-Y = Cm; % Nx1 measurement vector
-polynomial_order = 5; % adjustable based on fitting
+% Data splitting into model and validation datasets
+X = [a_true_2 b_true_2]; % reconstructed Z (alpha and beta)
+Y = Cm; % Z-axis  Cm 
+train_r = 0.7; % model ratio
+val_r = 1-train_r;
+N_meas = size(X, 1); 
 
-%%% 2. Identify Linear Regression Model Structure + Parameter Definitions
-%%%  Linear-in-the-parameter polynomial model y=Ax*theta
+s = RandStream('mt19937ar','Seed',1); % fixed seed for same results
+data_ordering = randperm(s, N_meas);
+X = X(data_ordering,:);
+Y = Y(data_ordering,:); 
 
-% Regression Matrix Ax 
-Ax = reg_matrix(X, polynomial_order); 
+[X_train, X_val, Y_train, Y_val] = data_split(X, Y, train_r, val_r, N_meas);
 
-%%% 3. Formulate the Least Square Estimator 
-theta_OLS = pinv(Ax)*Y; % OLS equation from slide
+%%% 2. Identify Linear Regression Model Structure, optimized order and parameters 
 
-Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
+% Optimal order
+[order, err] = optimal_order(X_train, Y_train, X_val, Y_val, 'simple');
+[A, theta, exp_order] = reg_matrix(order, X_train(:,1:2), Y_train, 'simple');
+A_complete = x2fx(X, exp_order); % use all datapoints with the optimal order
 
-chart_OLS(X, Y, Y_est, save_fig_param, 'OLS'); 
+% Output
+y_output = A * theta;
+residual = Y_train - y_output;
+MSE_output = sum(residual.^2)/size(residual,1);
+
+
+% Plotting
+set(0, 'DefaultAxesTickLabelInterpreter','latex')
+    set(0, 'DefaultLegendInterpreter','latex')
+
+TRIeval = delaunayn([a_true_2 b_true_2]);
+
+figure()
+plot3(X_train(:,1), X_train(:,2), y_output, '.k'); 
+
+hold on
+trisurf(TRIeval, a_true_2, b_true_2, Cm, 'EdgeColor', 'None');
+
+grid on;
+title(strcat('sumorder, MSE=', num2str(MSE_output)));
+legend('Linear Regression Model', 'Full Dataset');
+refreshdata
+
+% % Regression Matrix Ax 
+% Ax = reg_matrix(X, polynomial_order); 
+% 
+% %%% 3. Formulate the Least Square Estimator 
+% theta_OLS = pinv(Ax)*Y; % OLS equation from slide
+% 
+% Y_est = Ax*theta_OLS; % estimated Y using estimated thetas
+% 
+% chart_OLS(X, Y, Y_est, save_fig_param, 'OLS'); 
 
 %% Part 2.6-2.8: Model Validation 
 %%% 2.6 - Parameters

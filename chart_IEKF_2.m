@@ -36,6 +36,8 @@ figure
 plot(tspan, Z_k1k1(2,:));
 hold on
 plot(tspan, beta_m);
+hold on
+plot(tspan, b_true); 
 title('beta');
 legend('predicted output','measured output','estimated true beta');
 xlabel('time [s]')
@@ -67,16 +69,16 @@ grid();
 figure
 subplot(221)
 
-plot(tspan(1:end), est_err(1,:))
+plot(tspan(2:end), est_err(1,:))
 title('u')
 subplot(222)
-plot(tspan(1:end), est_err(2,:))
+plot(tspan(2:end), est_err(2,:))
 title('v')
 subplot(223)
-plot(tspan(1:end), est_err(3,:))
+plot(tspan(2:end), est_err(3,:))
 title('w')
 subplot(224)
-plot(tspan(1:end), est_err(4,:))
+plot(tspan(2:end), est_err(4,:))
 title('Ca')
 
 figure()

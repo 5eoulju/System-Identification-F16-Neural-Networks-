@@ -10,6 +10,7 @@ v = x(2);
 w = x(3);
 C = x(4);
 
+% Observation matrix 
 Hx = [-w*(1 + C)/(u^2 + w^2) 0 u*(1 + C)/(u^2 + w^2) atan(w / u);
       (-v*u)/(sqrt(u^2 + w^2)*(u^2 + v^2 + w^2)) sqrt(u^2 + w^2)/(u^2 + v^2 + w^2) -v*w/(sqrt(u^2 + w^2)*(u^2 + v^2 + w^2)) 0;
       u/sqrt(u^2 + v^2 + w^2) v/sqrt(u^2 + v^2 + w^2) w/sqrt(u^2 + v^2 + w^2) 0];
